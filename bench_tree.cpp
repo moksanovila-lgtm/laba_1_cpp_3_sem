@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <windows.h>
 
+
 using Clock = std::chrono::high_resolution_clock;
 
 double measure_us(std::function<void()> f) {
@@ -18,15 +19,13 @@ double measure_us(std::function<void()> f) {
 }
 
 void bench_insert(std::size_t n) {
-    BinaryTree<int> tree;
-    
+    BinaryTree<int, int> tree;
     std::vector<int> values(n);
     std::iota(values.begin(), values.end(), 0);           
     std::shuffle(values.begin(), values.end(), std::mt19937(42)); 
-
     double us = measure_us([&]() {
         for (int v : values) {
-            tree.Insert(v);
+            tree.Insert(v, v); 
         }
     });
     std::cout << "  Вставка " << n << ": " << us << " мкс\n";
@@ -34,32 +33,26 @@ void bench_insert(std::size_t n) {
 
 
 void bench_find(std::size_t n) {
-    BinaryTree<int> tree;
-    
+    BinaryTree<int, int> tree;
     std::vector<int> values(n);
     std::iota(values.begin(), values.end(), 0);
     std::shuffle(values.begin(), values.end(), std::mt19937(42));
-
-    for (int v : values) tree.Insert(v);
-
+    for (int v : values) tree.Insert(v, v);
     double us = measure_us([&]() {
-        for (int v : values) tree.Find(v);
+        for (int v : values) tree.Find(v); 
     });
     std::cout << "  Поиск   " << n << ": " << us << " мкс\n";
 }
 
 
 void bench_erase(std::size_t n) {
-    BinaryTree<int> tree;
-    
+    BinaryTree<int, int> tree;
     std::vector<int> values(n);
     std::iota(values.begin(), values.end(), 0);
     std::shuffle(values.begin(), values.end(), std::mt19937(42));
-
-    for (int v : values) tree.Insert(v);
-
+    for (int v : values) tree.Insert(v, v);
     double us = measure_us([&]() {
-        for (int v : values) tree.Erase(v);
+        for (int v : values) tree.Erase(v); 
     });
     std::cout << "  Удаление " << n << ": " << us << " мкс\n";
 }

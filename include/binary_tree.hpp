@@ -7,29 +7,35 @@
 #include <stdexcept>
 #include <utility>
 
-template <typename T>
+
+template <typename Key, typename Value>
 class TreeNode {
 public:
-    T value;
+    Key key;
+    Value value;
     TreeNode* left;
     TreeNode* right;
 
-    TreeNode(const T& val) : value(val), left(nullptr), right(nullptr) {}
+    TreeNode(const Key& k, const Value& v) : key(k), value(v), left(nullptr), right(nullptr) {}
 };
 
-template <typename T>
+enum class TraversalOrder {
+    KLP, KPL, LKP, LPK, PLK, PKL
+};
+
+template <typename Key, typename Value>
 class BinaryTree{
 private:
-    TreeNode<T>* root;
+    TreeNode<Key, Value>* root;
     std::size_t size;
 
-    void DestroyTree(TreeNode<T>* node);
-    TreeNode<T>* CopyTree(const TreeNode<T>* node);
-    TreeNode<T>* InsertNode(TreeNode<T>* node, const T& value);
-    TreeNode<T>* FindNode(TreeNode<T>* node, const T& value) const;
-    TreeNode<T>* EraseNode(TreeNode<T>* node, const T& value);
-    TreeNode<T>* MinNode(TreeNode<T>* node) const;
-    bool AreIdentical(TreeNode<T>* a, TreeNode<T>* b) const;
+    void DestroyTree(TreeNode<Key, Value>* node);
+    TreeNode<Key, Value>* CopyTree(const TreeNode<Key, Value>* node);
+    TreeNode<Key, Value>* InsertNode(TreeNode<Key, Value>* node, const Key& key, const Value& value);
+    TreeNode<Key, Value>* FindNode(TreeNode<Key, Value>* node, const Key& key) const;
+    TreeNode<Key, Value>* EraseNode(TreeNode<Key, Value>* node, const Key& key);
+    TreeNode<Key, Value>* MinNode(TreeNode<Key, Value>* node) const;
+    bool AreIdentical(TreeNode<Key, Value>* a, TreeNode<Key, Value>* b) const;
 
 public:
     BinaryTree() : root(nullptr), size(0) {}
@@ -44,45 +50,45 @@ public:
     
     ~BinaryTree();
 
-    void Insert(const T& value);
-    bool Find(const T& value) const;
-    void Erase(const T& value);
+    void Insert(const Key& key, const Value& value);
+    void Insert(const Key& key_and_value);
+    bool Find(const Key& key) const;
+    void Erase(const Key& key);
     void Clear() noexcept;
 
-    BinaryTree<T> ExtractSubtree(const T& value) const;
-    bool ContainsSubtree(const BinaryTree<T>& other) const;
+    BinaryTree<Key, Value> ExtractSubtree(const Key& key) const;
+    bool ContainsSubtree(const BinaryTree<Key, Value>& other) const;
 
     std::size_t Size() const noexcept {return size;}
     bool IsEmpty() const noexcept {return size == 0;}
     
-    template <typename Func> void TraverseKLP(Func visit) const;
-    template <typename Func> void TraverseKPL(Func visit) const;
-    template <typename Func> void TraverseLKP(Func visit) const;
-    template <typename Func> void TraverseLPK(Func visit) const;
-    template <typename Func> void TraversePLK(Func visit) const;
-    template <typename Func> void TraversePKL(Func visit) const;
+    template <typename Func>
+    void Traverse(TraversalOrder order, Func visit) const;
 
-    BinaryTree<T> Map(std::function<T(const T&)> f) const;
-    BinaryTree<T> Where(std::function<bool(const T&)> pred) const;
-    T Reduce(std::function<T(const T&, const T&)> f, T init) const;
+    BinaryTree<Key, Value> Map(std::function<std::pair<Key, Value>(const Key&, const Value&)> f) const;
+    BinaryTree<Key, Value> Where(std::function<bool(const Key&, const Value&)> pred) const;
+    
+    template <typename Accumulator, typename Func>
+    Accumulator Reduce(Func f, Accumulator init) const;
 
-    std::string Serialize() const;
-    void Deserialize(const std::string& str);
+    std::string SerializePairs() const;
+    std::string SerializeValues() const; 
+    void DeserializePairs(const std::string& str);
+    void DeserializeValues(const std::string& str);
 
-    TreeNode<T>* Root() const noexcept {return root;}
+    TreeNode<Key, Value>* Root() const noexcept {return root;}
 
 };
 
 
-
-template <typename T>
-BinaryTree<T>::BinaryTree(const BinaryTree& other) : root(nullptr), size(0) {
+template <typename Key, typename Value>
+BinaryTree<Key, Value>::BinaryTree(const BinaryTree& other) : root(nullptr), size(0) {
     root = CopyTree(other.root);
     size = other.size;
 }
 
-template <typename T>
-BinaryTree<T>& BinaryTree<T>::operator=(const BinaryTree& other){
+template <typename Key, typename Value>
+BinaryTree<Key, Value>& BinaryTree<Key, Value>::operator=(const BinaryTree& other){
     if(this != &other){
         Clear();
         root = CopyTree(other.root);
@@ -91,19 +97,19 @@ BinaryTree<T>& BinaryTree<T>::operator=(const BinaryTree& other){
     return *this;
 }
 
-template <typename T>
-BinaryTree<T>::~BinaryTree() {
+template <typename Key, typename Value>
+BinaryTree<Key, Value>::~BinaryTree() {
     Clear();
 }
 
-template <typename T>
-BinaryTree<T>::BinaryTree(BinaryTree&& other) noexcept : root(other.root), size(other.size){
+template <typename Key, typename Value>
+BinaryTree<Key, Value>::BinaryTree(BinaryTree&& other) noexcept : root(other.root), size(other.size){
     other.root = nullptr;
     other.size = 0;
 }
 
-template <typename T>
-BinaryTree<T>& BinaryTree<T>::operator=(BinaryTree&& other) noexcept {
+template <typename Key, typename Value>
+BinaryTree<Key, Value>& BinaryTree<Key, Value>::operator=(BinaryTree&& other) noexcept {
     if(this != &other){
         Clear();
         root = other.root;
@@ -114,269 +120,239 @@ BinaryTree<T>& BinaryTree<T>::operator=(BinaryTree&& other) noexcept {
     return *this;
 }
 
-template <typename T>
-void BinaryTree<T>::DestroyTree(TreeNode<T>* node){
+template <typename Key, typename Value>
+void BinaryTree<Key, Value>::DestroyTree(TreeNode<Key, Value>* node){
     if(!node) return;
     DestroyTree(node->left);
     DestroyTree(node->right);
     delete node;
 }
 
-template <typename T>
-void BinaryTree<T>::Clear() noexcept {
+template <typename Key, typename Value>
+void BinaryTree<Key, Value>::Clear() noexcept {
     DestroyTree(root);
     root = nullptr;
     size = 0;
 }
 
-template <typename T>
-TreeNode<T>* BinaryTree<T>::CopyTree(const TreeNode<T>* node){
-    if(!node) return nullptr;
-    TreeNode<T>* newNode = new TreeNode<T>(node->value);
+template <typename Key, typename Value>
+TreeNode<Key, Value>* BinaryTree<Key, Value>::CopyTree(const TreeNode<Key, Value>* node) {
+    if (!node) return nullptr;
+    TreeNode<Key, Value>* newNode = new TreeNode<Key, Value>(node->key, node->value);
     newNode->left = CopyTree(node->left);
     newNode->right = CopyTree(node->right);
     return newNode;
 }
 
-template <typename T>
-void BinaryTree<T>::Insert(const T& value){
-    root = InsertNode(root, value);
+template <typename Key, typename Value>
+void BinaryTree<Key, Value>::Insert(const Key& key, const Value& value) {
+    root = InsertNode(root, key, value);
 }
 
-template <typename T>
-TreeNode<T>* BinaryTree<T>::InsertNode(TreeNode<T>* node, const T& value){
-    if(!node){
+template <typename Key, typename Value>
+void BinaryTree<Key, Value>::Insert(const Key& key_and_value) {
+    root = InsertNode(root, key_and_value, static_cast<Value>(key_and_value));
+}
+
+template <typename Key, typename Value>
+TreeNode<Key, Value>* BinaryTree<Key, Value>::InsertNode(TreeNode<Key, Value>* node, const Key& key, const Value& value) {
+    if (!node) {
         size++;
-        return new TreeNode<T>(value);
+        return new TreeNode<Key, Value>(key, value);
     }
-    if(value < node->value) {
-        node->left = InsertNode(node->left, value);
-    }
-    else if(node->value < value){
-        node->right = InsertNode(node->right, value);
+    if (key < node->key) {
+        node->left = InsertNode(node->left, key, value);
+    } else if (node->key < key) {
+        node->right = InsertNode(node->right, key, value);
     }
     return node;
 }
 
-template <typename T>
-bool BinaryTree<T>::Find(const T& value) const {
-    return FindNode(root, value) != nullptr;
+template <typename Key, typename Value>
+bool BinaryTree<Key, Value>::Find(const Key& key) const {
+    return FindNode(root, key) != nullptr;
 }
 
-template <typename T>
-TreeNode<T>* BinaryTree<T>::FindNode(TreeNode<T>* node, const T& value) const {
-    if(!node || (!(value < node->value) && !(node->value < value))) return node;
-    if(value < node->value) return FindNode(node->left, value);
-    return FindNode(node->right, value);
+template <typename Key, typename Value>
+TreeNode<Key, Value>* BinaryTree<Key, Value>::FindNode(TreeNode<Key, Value>* node, const Key& key) const {
+    if (!node || (!(key < node->key) && !(node->key < key))) return node;
+    if (key < node->key) return FindNode(node->left, key);
+    return FindNode(node->right, key);
 }
 
-template <typename T>
-void BinaryTree<T>::Erase(const T& value) {
-    if (!Find(value)) {
-        throw std::out_of_range("BinaryTree::Erase: value not found");
+template <typename Key, typename Value>
+void BinaryTree<Key, Value>::Erase(const Key& key) {
+    if (!Find(key)) {
+        throw std::out_of_range("BinaryTree::Erase: key not found");
     }
-    root = EraseNode(root, value);
+    root = EraseNode(root, key);
 }
 
-template <typename T>
-TreeNode<T>* BinaryTree<T>::EraseNode(TreeNode<T>* node, const T& value){
-    if(!node) return nullptr;
-    if(value < node->value){
-        node->left = EraseNode(node->left, value);
-    }
-    else if(node->value < value){
-        node->right = EraseNode(node->right, value);
-    }
-    else{
-        if(!node->left){
-            TreeNode<T>* right = node->right;
-            delete node;
-            size--;
-            return right;
+template <typename Key, typename Value>
+TreeNode<Key, Value>* BinaryTree<Key, Value>::EraseNode(TreeNode<Key, Value>* node, const Key& key) {
+    if (!node) return nullptr;
+    if (key < node->key) {
+        node->left = EraseNode(node->left, key);
+    } 
+    else if (node->key < key) {
+        node->right = EraseNode(node->right, key);
+    } 
+    else {
+        if (!node->left) {
+            TreeNode<Key, Value>* right = node->right;
+            delete node; --size; return right;
         }
-        if(!node->right){
-            TreeNode<T>* left = node->left;
-            delete node;
-            size--;
-            return left;
+        if (!node->right) {
+            TreeNode<Key, Value>* left = node->left;
+            delete node; --size; return left;
         }
-        TreeNode<T>* minRight = MinNode(node->right);
+        TreeNode<Key, Value>* minRight = MinNode(node->right);
+        node->key = minRight->key;
         node->value = minRight->value;
-        node->right = EraseNode(node->right, minRight->value);
+        node->right = EraseNode(node->right, minRight->key);
     }
     return node;
 }
 
-template <typename T>
-TreeNode<T>* BinaryTree<T>::MinNode(TreeNode<T>* node) const {
+template <typename Key, typename Value>
+TreeNode<Key, Value>* BinaryTree<Key, Value>::MinNode(TreeNode<Key, Value>* node) const {
     while(node && node->left) node = node->left;
     return node;
 }
 
-template <typename T>
+template <typename Key, typename Value>
 template <typename Func>
-void BinaryTree<T>::TraverseKLP(Func visit) const {
-    std::function<void(TreeNode<T>*)> rec = [&](TreeNode<T>* n){
-        if(!n) return;
-        visit(n->value);
-        rec(n->left);
-        rec(n->right);
-    };
-    rec(root);
-}
-
-template <typename T>
-template <typename Func>
-void BinaryTree<T>::TraverseKPL(Func visit) const {
-    std::function<void(TreeNode<T>*)> rec = [&](TreeNode<T>* n) {
+void BinaryTree<Key, Value>::Traverse(TraversalOrder order, Func visit) const {
+    std::function<void(TreeNode<Key, Value>*)> rec = [&](TreeNode<Key, Value>* n) {
         if (!n) return;
-        visit(n->value);
-        rec(n->right);
-        rec(n->left);
+        switch (order) {
+            case TraversalOrder::KLP: visit(n->key, n->value); rec(n->left); rec(n->right); break;
+            case TraversalOrder::KPL: visit(n->key, n->value); rec(n->right); rec(n->left); break;
+            case TraversalOrder::LKP: rec(n->left); visit(n->key, n->value); rec(n->right); break;
+            case TraversalOrder::LPK: rec(n->left); rec(n->right); visit(n->key, n->value); break;
+            case TraversalOrder::PLK: rec(n->right); rec(n->left); visit(n->key, n->value); break;
+            case TraversalOrder::PKL: rec(n->right); visit(n->key, n->value); rec(n->left); break;
+        }
     };
     rec(root);
 }
 
-template <typename T>
-template <typename Func>
-void BinaryTree<T>::TraverseLKP(Func visit) const {
-    std::function<void(TreeNode<T>*)> rec = [&](TreeNode<T>* n) {
-        if (!n) return;
-        rec(n->left);
-        visit(n->value);
-        rec(n->right);
-    };
-    rec(root);
-}
-
-template <typename T>
-template <typename Func>
-void BinaryTree<T>::TraverseLPK(Func visit) const {
-    std::function<void(TreeNode<T>*)> rec = [&](TreeNode<T>* n) {
-        if (!n) return;
-        rec(n->left);
-        rec(n->right);
-        visit(n->value);
-    };
-    rec(root);
-}
-
-template <typename T>
-template <typename Func>
-void BinaryTree<T>::TraversePLK(Func visit) const {
-    std::function<void(TreeNode<T>*)> rec = [&](TreeNode<T>* n) {
-        if (!n) return;
-        rec(n->right);
-        rec(n->left);
-        visit(n->value);
-    };
-    rec(root);
-}
-
-template <typename T>
-template <typename Func>
-void BinaryTree<T>::TraversePKL(Func visit) const {
-    std::function<void(TreeNode<T>*)> rec = [&](TreeNode<T>* n) {
-        if (!n) return;
-        rec(n->right);
-        visit(n->value);
-        rec(n->left);
-    };
-    rec(root);
-}
-
-template <typename T>
-BinaryTree<T> BinaryTree<T>::Map(std::function<T(const T&)> f) const {
-    if (!f) {
-        throw std::invalid_argument("BinaryTree::Map: function is empty");
-    }
-    BinaryTree<T> result;
-    TraverseKLP([&](const T& val) { result.Insert(f(val)); });
+template <typename Key, typename Value>
+BinaryTree<Key, Value> BinaryTree<Key, Value>::Map(std::function<std::pair<Key, Value>(const Key&, const Value&)> f) const {
+    if (!f) throw std::invalid_argument("BinaryTree::Map: function is empty");
+    BinaryTree<Key, Value> result;
+    Traverse(TraversalOrder::KLP, [&](const Key& k, const Value& v) {
+        auto [newK, newV] = f(k, v);
+        result.Insert(newK, newV);
+    });
     return result;
 }
 
-template <typename T>
-BinaryTree<T> BinaryTree<T>::Where(std::function<bool(const T&)> pred) const {
-    if (!pred) {
-        throw std::invalid_argument("BinaryTree::Where: predicate is empty");
-    }
-    BinaryTree<T> result;
-    TraverseKLP([&](const T& val) { if (pred(val)) result.Insert(val); });
+template <typename Key, typename Value>
+BinaryTree<Key, Value> BinaryTree<Key, Value>::Where(std::function<bool(const Key&, const Value&)> pred) const {
+    if (!pred) throw std::invalid_argument("BinaryTree::Where: predicate is empty");
+    BinaryTree<Key, Value> result;
+    Traverse(TraversalOrder::KLP, [&](const Key& k, const Value& v) {
+        if (pred(k, v)) result.Insert(k, v);
+    });
     return result;
 }
 
-template <typename T>
-T BinaryTree<T>::Reduce(std::function<T(const T&, const T&)> f, T init) const {
-    if (!f) {
-        throw std::invalid_argument("BinaryTree::Reduce: function is empty");
-    }
+template <typename Key, typename Value>
+template <typename Accumulator, typename Func>
+Accumulator BinaryTree<Key, Value>::Reduce(Func f, Accumulator init) const {
     if (IsEmpty()) {
         throw std::logic_error("BinaryTree::Reduce: tree is empty");
     }
-    T acc = init;
-    TraverseKLP([&](const T& val) { acc = f(acc, val); });
+    
+    Accumulator acc = init;
+    Traverse(TraversalOrder::KLP, [&](const Key&, const Value& v) {
+        acc = f(acc, v);
+    });
     return acc;
 }
 
-
-template <typename T>
-std::string BinaryTree<T>::Serialize() const {
+template <typename Key, typename Value>
+std::string BinaryTree<Key, Value>::SerializePairs() const {
     std::ostringstream oss;
-    TraverseKLP([&](const T& val) { oss << val << " "; });
+    Traverse(TraversalOrder::KLP, [&](const Key& k, const Value& v) { 
+        oss << k << ":" << v << " "; 
+    });
     return oss.str();
 }
 
-template <typename T>
-void BinaryTree<T>::Deserialize(const std::string& str) {
-    if (str.empty()) {
-        throw std::invalid_argument("BinaryTree::Deserialize: empty string");
-    }
+template <typename Key, typename Value>
+void BinaryTree<Key, Value>::DeserializePairs(const std::string& str) {
+    if (str.empty()) throw std::invalid_argument("Пустая строка");
     Clear();
     std::istringstream iss(str);
-    T val;
+    std::string pair;
+    int count = 0;
+    while (iss >> pair) {
+        auto colon = pair.find(':');
+        if (colon == std::string::npos) throw std::runtime_error("Нет двоеточия в паре");
+        
+        std::istringstream k_iss(pair.substr(0, colon));
+        std::istringstream v_iss(pair.substr(colon + 1));
+        
+        Key k; Value v;
+        if (!(k_iss >> k) || !(v_iss >> v)) throw std::runtime_error("Ошибка парсинга");
+        Insert(k, v);
+        ++count;
+    }
+    if (count == 0) throw std::runtime_error("Ничего не загружено");
+}
+
+template <typename Key, typename Value>
+std::string BinaryTree<Key, Value>::SerializeValues() const {
+    std::ostringstream oss;
+    Traverse(TraversalOrder::KLP, [&](const Key&, const Value& v) { 
+        oss << v << " "; 
+    });
+    return oss.str();
+}
+
+template <typename Key, typename Value>
+void BinaryTree<Key, Value>::DeserializeValues(const std::string& str) {
+    if (str.empty()) throw std::invalid_argument("Пустая строка");
+    Clear();
+    std::istringstream iss(str);
+    Value val;
     int count = 0;
     while (iss >> val) {
-        Insert(val);
+        Insert(static_cast<Key>(val), val);
         count++;
     }
-    if (count == 0) {
-        throw std::runtime_error("BinaryTree::Deserialize: no values parsed");
-    }
+    if (count == 0) throw std::runtime_error("Ничего не загружено");
 }
 
-template <typename T>
-BinaryTree<T> BinaryTree<T>::ExtractSubtree(const T& value) const {
-    TreeNode<T>* node = FindNode(root, value);
-    if (!node) {
-        throw std::out_of_range("BinaryTree::ExtractSubtree: value not found");
-    }
-    BinaryTree<T> result;
+template <typename Key, typename Value>
+BinaryTree<Key, Value> BinaryTree<Key, Value>::ExtractSubtree(const Key& key) const {
+    TreeNode<Key, Value>* node = FindNode(root, key);
+    if (!node) throw std::out_of_range("BinaryTree::ExtractSubtree: key not found");
+    BinaryTree<Key, Value> result;
     result.root = result.CopyTree(node);
     result.size = 0;
-    result.TraverseKLP([&](const T&) {result.size++;});
-    return result;   
+    result.Traverse(TraversalOrder::KLP, [&](const Key&, const Value&) { ++result.size; });
+    return result;
 }
 
-template <typename T>
-bool BinaryTree<T>::AreIdentical(TreeNode<T>* a, TreeNode<T>* b) const{
-    if(!a && !b) return true;
-    if(!a || !b) return false;
-    if(a->value < b->value || b->value < a->value) return false;
+template <typename Key, typename Value>
+bool BinaryTree<Key, Value>::AreIdentical(TreeNode<Key, Value>* a, TreeNode<Key, Value>* b) const {
+    if (!a && !b) return true;
+    if (!a || !b) return false;
+    if (a->key < b->key || b->key < a->key) return false;
     return AreIdentical(a->left, b->left) && AreIdentical(a->right, b->right);
 }
 
-template <typename T>
-bool BinaryTree<T>::ContainsSubtree(const BinaryTree<T>& other) const {
-    if(other.IsEmpty()) return true;
+template <typename Key, typename Value>
+bool BinaryTree<Key, Value>::ContainsSubtree(const BinaryTree<Key, Value>& other) const {
+    if (other.IsEmpty()) return true;
     bool found = false;
-    TraverseKLP([&](const T& val){
-        if(found) return;
-        TreeNode<T>* node = FindNode(root, val);
-        if(node && AreIdentical(node, other.root)){
-            found = true;
-        }
+    Traverse(TraversalOrder::KLP, [&](const Key& k, const Value&) {
+        if (found) return;
+        TreeNode<Key, Value>* node = FindNode(root, k);
+        if (node && AreIdentical(node, other.root)) found = true;
     });
     return found;
 }
-
-
