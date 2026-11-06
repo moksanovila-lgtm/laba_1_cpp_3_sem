@@ -4,6 +4,7 @@
 #include <string>
 #include <utility>
 
+
 void insert_key(BinaryTree<int, std::string>& tree, int key) {
     tree.Insert(key, ""); 
 }
@@ -12,6 +13,7 @@ TEST(BinaryTreeTest, BasicOperations) {
     BinaryTree<int, std::string> tree;
     EXPECT_TRUE(tree.IsEmpty());
     EXPECT_EQ(tree.Size(), 0);
+
     tree.Insert(10, "a");
     tree.Insert(5, "b");
     tree.Insert(15, "c");
@@ -46,6 +48,7 @@ TEST(BinaryTreeTest, EraseNodeWithTwoChildren) {
     BinaryTree<int, std::string> tree;
     insert_key(tree, 10); insert_key(tree, 5); insert_key(tree, 15);
     insert_key(tree, 3); insert_key(tree, 7); insert_key(tree, 12); insert_key(tree, 20);
+
     tree.Erase(5);
     EXPECT_FALSE(tree.Find(5));
     EXPECT_TRUE(tree.Find(3));
@@ -56,6 +59,7 @@ TEST(BinaryTreeTest, EraseNodeWithTwoChildren) {
 TEST(BinaryTreeTest, EraseExceptions) {
     BinaryTree<int, std::string> tree;
     EXPECT_THROW(tree.Erase(99), std::out_of_range);
+
     tree.Insert(10, "x");
     EXPECT_THROW(tree.Erase(99), std::out_of_range);
 }
@@ -63,16 +67,19 @@ TEST(BinaryTreeTest, EraseExceptions) {
 TEST(BinaryTreeTest, AllTraversals) {
     BinaryTree<int, std::string> tree;
     insert_key(tree, 10); insert_key(tree, 5); insert_key(tree, 15);
+
     std::vector<int> klp, kpl, lkp, lpk, plk, pkl;
     auto push_k = [](std::vector<int>& vec) {
         return [&vec](const int& k, const std::string&) { vec.push_back(k); };
     };
-    tree.Traverse(TraversalOrder::KLP, push_k(klp));
-    tree.Traverse(TraversalOrder::KPL, push_k(kpl));
-    tree.Traverse(TraversalOrder::LKP, push_k(lkp));
-    tree.Traverse(TraversalOrder::LPK, push_k(lpk));
-    tree.Traverse(TraversalOrder::PLK, push_k(plk));
-    tree.Traverse(TraversalOrder::PKL, push_k(pkl));
+
+    tree.Traverse(push_k(klp), TraversalStrategy::KLP);
+    tree.Traverse(push_k(kpl), TraversalStrategy::KPL);
+    tree.Traverse(push_k(lkp), TraversalStrategy::LKP);
+    tree.Traverse(push_k(lpk), TraversalStrategy::LPK);
+    tree.Traverse(push_k(plk), TraversalStrategy::PLK);
+    tree.Traverse(push_k(pkl), TraversalStrategy::PKL);
+
     EXPECT_EQ(klp, std::vector<int>({10, 5, 15}));
     EXPECT_EQ(kpl, std::vector<int>({10, 15, 5}));
     EXPECT_EQ(lkp, std::vector<int>({5, 10, 15}));
@@ -84,46 +91,52 @@ TEST(BinaryTreeTest, AllTraversals) {
 TEST(BinaryTreeTest, MapWhereReduce) {
     BinaryTree<int, std::string> tree;
     insert_key(tree, 1); insert_key(tree, 2); insert_key(tree, 3);
+
     auto mapped = tree.Map([](const int& k, const std::string& v) {
         return std::make_pair(k * 2, v);
     });
     EXPECT_TRUE(mapped.Find(2));
     EXPECT_TRUE(mapped.Find(4));
     EXPECT_TRUE(mapped.Find(6));
+
     auto filtered = tree.Where([](const int& k, const std::string&) {
         return k % 2 == 0;
     });
     EXPECT_TRUE(filtered.Find(2));
     EXPECT_FALSE(filtered.Find(1));
-    int sum = tree.Reduce(
-        [](int acc, const std::string&) { return acc + 1; }, 
-        0
+
+    int count = tree.Reduce<int>(
+    [](int acc, const std::string&) { return acc + 1; }, 
+    0
     );
-    EXPECT_EQ(sum, 3);
+    EXPECT_EQ(count, 3);
 }
 
 TEST(BinaryTreeTest, ReduceExceptions) {
     BinaryTree<int, std::string> tree;
-    EXPECT_THROW(tree.Reduce([](int a, const std::string&) { return a; }, 0), std::logic_error);
-    insert_key(tree, 1);
+    EXPECT_THROW(tree.Reduce<int>([](int a, const std::string&) { return a; }, 0), std::logic_error);
 }
 
 TEST(BinaryTreeTest, ExtractSubtree) {
     BinaryTree<int, std::string> tree;
     insert_key(tree, 10); insert_key(tree, 5); insert_key(tree, 15); insert_key(tree, 3);
+
     auto sub = tree.ExtractSubtree(5);
     EXPECT_EQ(sub.Size(), 2);
     EXPECT_TRUE(sub.Find(5));
     EXPECT_TRUE(sub.Find(3));
+
     EXPECT_THROW(tree.ExtractSubtree(99), std::out_of_range);
 }
 
 TEST(BinaryTreeTest, ContainsSubtree) {
     BinaryTree<int, std::string> tree;
     insert_key(tree, 10); insert_key(tree, 5); insert_key(tree, 15); insert_key(tree, 3);
+
     BinaryTree<int, std::string> sub;
     insert_key(sub, 5); insert_key(sub, 3);
     EXPECT_TRUE(tree.ContainsSubtree(sub));
+
     BinaryTree<int, std::string> badSub;
     insert_key(badSub, 5); insert_key(badSub, 4);
     EXPECT_FALSE(tree.ContainsSubtree(badSub));
@@ -134,13 +147,15 @@ TEST(BinaryTreeTest, SerializeDeserializePairs) {
     tree.Insert(10, "a");
     tree.Insert(5, "b");
     tree.Insert(15, "c");
-    std::string s = tree.SerializePairs();
+
+    std::string s = tree.Serialize(false);
     EXPECT_FALSE(s.empty());
     EXPECT_NE(s.find("10:a"), std::string::npos);
     EXPECT_NE(s.find("5:b"), std::string::npos);
     EXPECT_NE(s.find("15:c"), std::string::npos);
+
     BinaryTree<int, std::string> restored;
-    restored.DeserializePairs(s);
+    restored.Deserialize(s, false);
     EXPECT_EQ(restored.Size(), 3);
     EXPECT_TRUE(restored.Find(10));
     EXPECT_TRUE(restored.Find(5));
@@ -149,18 +164,20 @@ TEST(BinaryTreeTest, SerializeDeserializePairs) {
 
 TEST(BinaryTreeTest, DeserializeExceptions) {
     BinaryTree<int, std::string> tree;
-    EXPECT_THROW(tree.DeserializePairs(""), std::invalid_argument);
-    EXPECT_THROW(tree.DeserializePairs("10 5 15"), std::runtime_error);
+    EXPECT_THROW(tree.Deserialize("", false), std::invalid_argument);
+    EXPECT_THROW(tree.Deserialize("10 5 15", false), std::runtime_error); 
 }
 
 TEST(BinaryTreeTest, CopyAndMove) {
     BinaryTree<int, std::string> tree;
     insert_key(tree, 10); insert_key(tree, 5);
+
     BinaryTree<int, std::string> copy = tree;
     EXPECT_EQ(copy.Size(), 2);
     insert_key(copy, 15);
     EXPECT_EQ(copy.Size(), 3);
     EXPECT_EQ(tree.Size(), 2);
+
     BinaryTree<int, std::string> moved = std::move(tree);
     EXPECT_EQ(moved.Size(), 2);
     EXPECT_TRUE(tree.IsEmpty());

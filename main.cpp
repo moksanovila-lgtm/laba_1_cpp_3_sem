@@ -25,10 +25,11 @@ void print_menu() {
     std::cout << "10. Загрузить из строки (Deserialize)\n";
     std::cout << "11. Map (умножить ключи на 2)\n";
     std::cout << "12. Where (оставить только чётные ключи)\n";
-    std::cout << "13. Reduce (сумма для чисел/сумма длинн для строк)\n";
+    std::cout << "13. Reduce (сумма для чисел/сумма длин для строк)\n";
     std::cout << "0. Выход\n";
     std::cout << "Выбор: ";
 }
+
 
 int main() {
     SetConsoleOutputCP(65001);
@@ -53,7 +54,6 @@ int main() {
                 std::cout << "Ошибка ввода. Введите число.\n";
                 continue;
             }
-
             try {
                 if (choice == 1) {
                     int val;
@@ -78,19 +78,16 @@ int main() {
                     std::cout << "Выберите обход:\n1. КЛП\n2. КПЛ\n3. ЛКП\n4. ЛПК\n5. ПЛК\n6. ПКЛ\n";
                     int trav_choice;
                     std::cin >> trav_choice;
-                    TraversalOrder order;
+                    auto visitor = [](const int&, const int& v) { std::cout << v << " "; };
                     switch (trav_choice) {
-                        case 1: order = TraversalOrder::KLP; break;
-                        case 2: order = TraversalOrder::KPL; break;
-                        case 3: order = TraversalOrder::LKP; break;
-                        case 4: order = TraversalOrder::LPK; break;
-                        case 5: order = TraversalOrder::PLK; break;
-                        case 6: order = TraversalOrder::PKL; break;
+                        case 1: tree.Traverse(visitor, TraversalStrategy::KLP); break;
+                        case 2: tree.Traverse(visitor, TraversalStrategy::KPL); break;
+                        case 3: tree.Traverse(visitor, TraversalStrategy::LKP); break;
+                        case 4: tree.Traverse(visitor, TraversalStrategy::LPK); break;
+                        case 5: tree.Traverse(visitor, TraversalStrategy::PLK); break;
+                        case 6: tree.Traverse(visitor, TraversalStrategy::PKL); break;
                         default: std::cout << "Неверный выбор.\n"; continue;
                     }
-                    tree.Traverse(order, [](const int&, const int& v) {
-                        std::cout << v << " ";
-                    });
                     std::cout << "\n";
                 } else if (choice == 5) {
                     if (tree.IsEmpty()) std::cout << "Пусто.\n";
@@ -103,9 +100,9 @@ int main() {
                     std::cin >> key;
                     auto sub = tree.ExtractSubtree(key);
                     std::cout << "Извлечено поддерево размером " << sub.Size() << ":\n";
-                    sub.Traverse(TraversalOrder::KLP, [](const int&, const int& v) {
+                    sub.Traverse([](const int&, const int& v) {
                         std::cout << v << " ";
-                    });
+                    }, TraversalStrategy::KLP);
                     std::cout << "\n";
                 } else if (choice == 8) {
                     int key;
@@ -116,34 +113,34 @@ int main() {
                     if (tree.ContainsSubtree(sub)) std::cout << "Найдено!\n";
                     else std::cout << "НЕ найдено.\n";
                 } else if (choice == 9) {
-                    std::cout << "Строка: " << tree.SerializeValues() << "\n";
+                    std::cout << "Строка: " << tree.Serialize(true) << "\n";
                 } else if (choice == 10) {
                     std::string s;
                     std::cout << "Введите числа через пробел (например: 10 5 15): ";
                     std::cin.ignore();
                     std::getline(std::cin, s);
-                    tree.DeserializeValues(s);
+                    tree.Deserialize(s, true);
                     std::cout << "Загружено. Размер: " << tree.Size() << "\n";
                 } else if (choice == 11) {
                     auto mapped = tree.Map([](const int& k, const int& v) {
                         return std::make_pair(k * 2, v * 2); 
                     });
                     std::cout << "Map (x2): ";
-                    mapped.Traverse(TraversalOrder::KLP, [](const int&, const int& v) {
+                    mapped.Traverse([](const int&, const int& v) {
                         std::cout << v << " ";
-                    });
+                    }, TraversalStrategy::KLP);
                     std::cout << "\n";
                 } else if (choice == 12) {
                     auto filtered = tree.Where([](const int& k, const int&) {
                         return k % 2 == 0;
                     });
                     std::cout << "Where (чётные): ";
-                    filtered.Traverse(TraversalOrder::KLP, [](const int&, const int& v) {
+                    filtered.Traverse([](const int&, const int& v) {
                         std::cout << v << " ";
-                    });
+                    }, TraversalStrategy::KLP);
                     std::cout << "\n";
                 } else if (choice == 13) {
-                    int sum = tree.Reduce([](int acc, const int& v) { return acc + v; }, 0);
+                    int sum = tree.Reduce<int>([](int acc, const int& v) { return acc + v; }, 0);
                     std::cout << "Сумма: " << sum << "\n";
                 } else if (choice == 0) {
                     break;
@@ -189,20 +186,17 @@ int main() {
                     if (tree.IsEmpty()) { std::cout << "Пусто.\n"; continue; }
                     std::cout << "Выберите обход:\n1. КЛП\n2. КПЛ\n3. ЛКП\n4. ЛПК\n5. ПЛК\n6. ПКЛ\n";
                     int trav_choice;
-                    std::cin >> trav_choice;
-                    TraversalOrder order;
+                    std::cin >> trav_choice;                   
+                    auto visitor = [](const int&, const std::string& v) { std::cout << v << " "; };
                     switch (trav_choice) {
-                        case 1: order = TraversalOrder::KLP; break;
-                        case 2: order = TraversalOrder::KPL; break;
-                        case 3: order = TraversalOrder::LKP; break;
-                        case 4: order = TraversalOrder::LPK; break;
-                        case 5: order = TraversalOrder::PLK; break;
-                        case 6: order = TraversalOrder::PKL; break;
+                        case 1: tree.Traverse(visitor, TraversalStrategy::KLP); break;
+                        case 2: tree.Traverse(visitor, TraversalStrategy::KPL); break;
+                        case 3: tree.Traverse(visitor, TraversalStrategy::LKP); break;
+                        case 4: tree.Traverse(visitor, TraversalStrategy::LPK); break;
+                        case 5: tree.Traverse(visitor, TraversalStrategy::PLK); break;
+                        case 6: tree.Traverse(visitor, TraversalStrategy::PKL); break;
                         default: std::cout << "Неверный выбор.\n"; continue;
                     }
-                    tree.Traverse(order, [](const int&, const std::string& v) {
-                        std::cout << v << " ";
-                    });
                     std::cout << "\n";
                 } else if (choice == 5) {
                     if (tree.IsEmpty()) std::cout << "Пусто.\n";
@@ -214,9 +208,9 @@ int main() {
                     std::cout << "Ключ корня поддерева: "; std::cin >> key;
                     auto sub = tree.ExtractSubtree(key);
                     std::cout << "Извлечено: ";
-                    sub.Traverse(TraversalOrder::KLP, [](const int&, const std::string& v) {
+                    sub.Traverse([](const int&, const std::string& v) {
                         std::cout << v << " ";
-                    });
+                    }, TraversalStrategy::KLP);
                     std::cout << "\n";
                 } else if (choice == 8) {
                     int key;
@@ -226,34 +220,34 @@ int main() {
                     if (tree.ContainsSubtree(sub)) std::cout << "Найдено!\n";
                     else std::cout << "НЕ найдено.\n";
                 } else if (choice == 9) {
-                    std::cout << "Строка: " << tree.SerializePairs() << "\n";
+                    std::cout << "Строка: " << tree.Serialize(false) << "\n";
                 } else if (choice == 10) {
                     std::string s;
                     std::cout << "Введите пары (например: 10:Иван 5:Петр): ";
                     std::cin.ignore();
                     std::getline(std::cin, s);
-                    tree.DeserializePairs(s);
+                    tree.Deserialize(s, false);
                     std::cout << "Загружено. Размер: " << tree.Size() << "\n";
                 } else if (choice == 11) {
                     auto mapped = tree.Map([](const int& k, const std::string& v) {
                         return std::make_pair(k * 2, v);
                     });
                     std::cout << "Map: ";
-                    mapped.Traverse(TraversalOrder::KLP, [](const int& k, const std::string& v) {
+                    mapped.Traverse([](const int& k, const std::string& v) {
                         std::cout << k << ": " << v << " | ";  
-                    });
+                    }, TraversalStrategy::KLP);
                     std::cout << "\n";
                 } else if (choice == 12) {
                     auto filtered = tree.Where([](const int& k, const std::string&) {
                         return k % 2 == 0;
                     });
                     std::cout << "Where: ";
-                    filtered.Traverse(TraversalOrder::KLP, [](const int&, const std::string& v) {
+                    filtered.Traverse([](const int&, const std::string& v) {
                         std::cout << v << " ";
-                    });
+                    }, TraversalStrategy::KLP);
                     std::cout << "\n";
                 } else if (choice == 13) {
-                    int sum = tree.Reduce([](int acc, const std::string& v) { return acc + v.length(); }, 0);
+                    int sum = tree.Reduce<int>([](int acc, const std::string& v) { return acc + v.length(); }, 0);
                     std::cout << "Сумма длин строк: " << sum << "\n";
                 } else if (choice == 0) {
                     break;
