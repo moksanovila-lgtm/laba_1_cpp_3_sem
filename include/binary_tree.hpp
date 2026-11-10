@@ -242,14 +242,14 @@ TreeNode<Key, Value>* BinaryTree<Key, Value>::MinNode(TreeNode<Key, Value>* node
 
 template <Comparable Key, typename Value>
 void BinaryTree<Key, Value>::Traverse(
-    std::function<void(const Key&, const Value&)> visit,
-    std::function<void(
-        TreeNode<Key, Value>*, 
-        std::function<void()>, 
-        std::function<void()>, 
-        std::function<void()>
-    )> strategy
-) const {
+        std::function<void(const Key&, const Value&)> visit,
+        std::function<void(
+            TreeNode<Key, Value>*, 
+            std::function<void()>, 
+            std::function<void()>, 
+            std::function<void()>
+        )> strategy
+    ) const {
     std::function<void(TreeNode<Key, Value>*)> rec = [&](TreeNode<Key, Value>* n) {
         if (!n) return;
 
